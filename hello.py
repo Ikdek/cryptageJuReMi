@@ -1,5 +1,6 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, send_file
 import time
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -93,19 +94,31 @@ template = '''
             margin-top: 20px;
             padding: 10px;
             background-color: #f0f0f0;
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
             border-radius: 5px;
         }
+        .download-button {
+            background: #4CAF50;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .download-button:hover {
+            background: #3e8e41;
+        }
+    
         .time-taken {
+            margin-top: 10px;
             font-size: 14px;
             color: #666;
-            margin-top: 10px;
         }
         .uwu {
-            font-size: 20px;
-            color: #ff69b4;
             text-align: center;
+            font-size: 24px;
             margin-top: 20px;
+            color: #ff69b4;
         }
     </style>
 </head>
@@ -117,19 +130,39 @@ template = '''
             <input type="text" id="key" name="key" value="{{ key }}">
             <label for="string">Texte :</label>
             <input type="text" id="string" name="string" value="{{ string }}">
-            <button type="submit" name="action" value="encrypt">Chiffrer</button>
-            <button type="submit" name="action" value="decrypt">Déchiffrer</button>
+            <label for="action">Action :</label>
+            <select id="action" name="action">
+                <option value="encrypt">Chiffrer</option>
+                <option value="decrypt">Déchiffrer</option>
+            </select>
+            <button type="submit">Exécuter</button>
         </form>
         {% if result %}
-            <div id="result">
-                Résultat : {{ result }}
+            <div id="result">Résultat : {{ result }}</div>
+            <div>
+                <form action="/download_log" method="post" style="display: inline;">
+                    <input type="hidden" name="log_data" value="{{ log_data }}">
+                    <button class="download-button" type="submit">Télécharger le log</button>
+                </form>
+                <button class="download-button" onclick="copyResult()">Copier le résultat</button>
             </div>
             <div class="time-taken">
                 Temps pris : {{ time_taken }} secondes
             </div>
         {% endif %}
+
         <div class="uwu">UwU</div>
     </div>
+    <script>
+        function copyResult() {
+            var resultText = document.getElementById("result").textContent.replace("Résultat : ", "");
+            navigator.clipboard.writeText(resultText).then(function() {
+                alert("Résultat copié dans le presse-papiers !");
+            }, function(err) {
+                console.error("Erreur lors de la copie : ", err);
+            });
+        }
+    </script>
 </body>
 </html>
 '''
@@ -139,7 +172,7 @@ def encrypt(key, string):
     for i, char in enumerate(string):
         shift = (ord(char) + ord(key[i % len(key)])) % 256
         result += chr(shift)
-    return result
+    return result.encode('latin1').decode('latin1')
 
 def decrypt(key, encrypted_string):
     result = ""
@@ -158,11 +191,18 @@ def index():
         if action == 'encrypt':
             result = encrypt(key, string)
         elif action == 'decrypt':
-            result = decrypt(key, string)
+            result = decrypt(key, string.encode('latin1').decode('latin1'))
         end_time = time.time()
         time_taken = end_time - start_time
-        return render_template_string(template, result=result, key=key, string=string, time_taken=time_taken)
-    return render_template_string(template, key='', string='', result='', time_taken='')
+        log_data = f"Action: {action}\nClé: {key}\nTexte: {string}\nRésultat: {result}\nTemps pris: {time_taken} secondes"
+        return render_template_string(template, result=result, key=key, string=string, time_taken=time_taken, log_data=log_data)
+    return render_template_string(template, key='', string='', result='', time_taken='', log_data='')
+
+@app.route('/download_log', methods=['POST'])
+def download_log():
+    log_data = request.form['log_data']
+    return send_file(BytesIO(log_data.encode()), as_attachment=True, download_name='log.txt')
 
 if __name__ == '__main__':
     app.run(debug=True)
+
