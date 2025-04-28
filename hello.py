@@ -98,7 +98,7 @@ template = '''
             border-radius: 5px;
         }
         .download-button {
-            background: #4CAF50;
+            background: #ff69b4;
             color: #fff;
             padding: 10px 20px;
             border: none;
@@ -106,7 +106,7 @@ template = '''
             cursor: pointer;
         }
         .download-button:hover {
-            background: #3e8e41;
+            background: #ff3385;
         }
     
         .time-taken {
